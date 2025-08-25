@@ -1,4 +1,4 @@
-#  Prompt Engineering Guide
+#  Prompt Engineering Guide ( GPT-4.1 )
 
 This repo also includes a short introduction to **Prompt Engineering** for beginners.  
 For more details, check out the official OpenAI Cookbook guide:  
