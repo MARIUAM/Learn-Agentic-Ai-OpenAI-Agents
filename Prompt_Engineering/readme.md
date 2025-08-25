@@ -93,3 +93,143 @@ GPT-4.1 automatic reasoning default nahi karta—agar reasoning chahiye, prompt 
 [6]: https://aiagent.marktechpost.com/post/the-ultimate-gpt-4-1-prompting-guide-by-openai?utm_source=chatgpt.com "The Ultimate GPT-4.1 Prompting Guide by OpenAI"
 [7]: https://www.reddit.com/r/ChatGPTPro/comments/1jzyf6k/openai_just_dropped_a_detailed_prompting_guide/?utm_source=chatgpt.com "OpenAI just dropped a detailed prompting guide and it's ..."
 
+
+
+# code Example
+
+# 🧑‍💻 Example: Weather Helper Agent with GPT-4.1
+
+Yeh ek simple demo hai jisme humne **Prompt Engineering structure** (Role, Instructions, Tool-use, Reasoning, Output format, etc.) apply kiya hai aur GPT-4.1 ko ek **Weather Agent** banaya hai.
+
+---
+
+## 🚀 Code Example
+
+```python
+import os, json
+from openai import OpenAI
+
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+# ─────────────────────────────────────────────────────────────
+# SYSTEM PROMPT TEMPLATE  ➜ maps to your headings one by one
+# ─────────────────────────────────────────────────────────────
+SYSTEM_PROMPT = """
+# Role and Objective
+You are a Weather Helper agent. Your objective is to answer user weather queries by correctly using the get_weather tool and returning a short, friendly summary.
+
+# Instructions
+- Be brief, accurate, and helpful. If something is missing, ask a focused question.
+- If tool output conflicts with your prior knowledge, trust the tool output.
+- Never invent data; if the tool fails, say what failed and suggest next step.
+
+## Sub-categories for more detailed instructions
+### Tool-use
+- If a city is provided, call get_weather with that city.
+- If city is missing or unclear, ask the user for the city (do NOT guess).
+### Persistence
+- Continue the task until the user’s query is resolved; don’t stop right after planning or just a tool call.
+### Planning
+- Before each tool call, briefly plan internally. After tool results, reflect internally.
+- Only share a concise, high-level rationale with the user (no internal chain-of-thought).
+
+# Reasoning Steps
+(Think step by step internally. Decide: Do I have city? If yes ➜ call tool. If not ➜ ask for city. After tool, summarize result clearly.)
+
+# Output Format
+- Start with one-line answer.
+- Then 1–3 bullets: temp, condition, any note.
+- If information is missing, ask exactly what’s needed in one short question.
+
+# Examples
+## Example 1
+User: "Weather in Lahore?"
+Assistant: (plan internally) ➜ call get_weather(city="Lahore") ➜ summarize result.
+
+# Context
+- Data source is the get_weather tool provided by the app.
+- If the tool errors or returns null, say: "I couldn’t get the weather right now." and suggest trying again.
+
+# Final instructions and prompt to think step by step
+- Think step by step silently; show only the final answer + 1–3 bullets.
+- If you need more info, ask a single, direct question and wait.
+"""
+
+# ─────────────────────────────────────────────────────────────
+# TOOL DEFINITION (function calling schema)
+# ─────────────────────────────────────────────────────────────
+tools = [
+    {
+        "type": "function",
+        "function": {
+            "name": "get_weather",
+            "description": "Get current weather for a city (returns temperature and condition).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "city": {"type": "string", "description": "City name, e.g., 'Lahore'."}
+                },
+                "required": ["city"],
+                "additionalProperties": False,
+            },
+        },
+    }
+]
+
+# ─────────────────────────────────────────────────────────────
+# (Demo) our backend function to fulfill the tool call
+# In real app, yahan OpenWeatherMap ya kisi real API ko hit karna hota hai.
+# ─────────────────────────────────────────────────────────────
+def get_weather_backend(city: str) -> dict:
+    demo = {
+        "Lahore": {"temperature": "32°C", "condition": "Sunny"},
+        "Karachi": {"temperature": "30°C", "condition": "Humid"},
+    }
+    return demo.get(city, {"temperature": "N/A", "condition": "Unknown"})
+
+# ─────────────────────────────────────────────────────────────
+# STEP 1: user message
+# ─────────────────────────────────────────────────────────────
+messages = [
+    {"role": "system", "content": SYSTEM_PROMPT},
+    {"role": "user", "content": "Tell me the weather in Lahore."}
+]
+
+# ─────────────────────────────────────────────────────────────
+# STEP 2: first model call — it should propose a tool call
+# ─────────────────────────────────────────────────────────────
+first = client.chat.completions.create(
+    model="gpt-4.1",
+    messages=messages,
+    tools=tools
+)
+
+msg = first.choices[0].message
+tool_calls = msg.tool_calls or []
+
+if tool_calls:
+    call = tool_calls[0]
+    tool_name = call.function.name
+    args = json.loads(call.function.arguments or "{}")
+
+    if tool_name == "get_weather":
+        tool_result = get_weather_backend(args.get("city", ""))
+
+        messages += [
+            msg,
+            {
+                "role": "tool",
+                "tool_call_id": call.id,
+                "name": tool_name,
+                "content": json.dumps(tool_result)
+            }
+        ]
+
+        final = client.chat.completions.create(
+            model="gpt-4.1",
+            messages=messages
+        )
+        print(final.choices[0].message.content)
+else:
+    print(msg.content or "No content from model.")
+
