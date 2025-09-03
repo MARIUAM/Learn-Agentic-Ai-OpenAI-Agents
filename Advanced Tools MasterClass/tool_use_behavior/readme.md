@@ -1,4 +1,6 @@
+# see the code example
 
+https://colab.research.google.com/drive/1hL3uorPX9L9zFZnS9mrpwTMPezQ8pnYO#scrollTo=c618caf4&line=3&uniqifier=1
 #  Advanced Agent Tools — Concepts & Examples
 
 Yeh guide **OpenAI Agents SDK** ke advanced tools aur unke real-world use cases ko explain karti hai. Har section mein simple explanation + example code diya gaya hai.
